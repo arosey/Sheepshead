@@ -123,52 +123,23 @@ def deal(players: list[Player], dealer_seat: int) -> list[Card]:
     return next(card_gen)
 
 
-def update_scores_alone(players: list[Player], hand: Hand):
-    assert hand.pick_style == PickStyle.ALONE and hand.called_card is None
-    tricks_taken_by_picker: list[Trick] = tricks_taken_by_seat(hand, hand.picker_seat)
-    picker = players[hand.picker_seat]
-    picker_points = picker.points_taken
-    outcome = None
-    if len(tricks_taken_by_picker) == 6:
-        # If the picker takes all 6 tricks, they will have 120 points.
-        # However, having 120 points does guarantee they took every trick as they could have lost a 0-point trick
-        outcome = Outcome.WIN_ALL_TRICKS
-    elif len(tricks_taken_by_picker) == 0:
-        # Having 0 points does not guarantee they took no tricks as they could have taken a 0-point trick.
-        # Having more than 0 points does not guarantee they took a trick as the points could come from their bury.
-        outcome = Outcome.Lose_NO_TRICKS
-    elif picker_points >= 91:
-        outcome = Outcome.WIN_NO_SCHNEIDER
-    elif picker_points >= 61:
-        outcome = Outcome.WIN_WITH_SCHNEIDER
-    elif picker_points >= 31:
-        outcome = Outcome.LOSE_WITH_SCHNEIDER
-    else:
-        assert 0 <= picker_points <= 30
-        outcome = Outcome.LOSE_NO_SCHNEIDER
-
-    print(f"Picker {picker.name} {outcome}")
-    print("|".join([f"{player.name: ^16}" for player in players]))
-    picker_delta = outcome.value
-    opposition_delta = outcome.value / -4
-    delta_strings = [""] * len(players)
-    for i in range(len(players)):
-        delta = picker_delta if players[i] is picker else opposition_delta
-        players[i].score += delta
-        delta_strings[i] = f"{f'{players[i].score}({delta})': ^16}"
-    print("|".join(delta_strings))
-    print()
-
-
-def update_scores_partnered(players, hand):
-    assert hand.pick_style != PickStyle.ALONE and hand.called_card is not None
-    partner_seat = seat_with_card(hand, hand.called_card)
+def update_scores(players: list[Player], hand: Hand):
+    assert (
+        hand.pick_style == PickStyle.ALONE
+        if hand.called_card is None
+        else hand.pick_style != PickStyle.ALONE
+    )
+    partner_seat = (
+        seat_with_card(hand, hand.called_card) if hand.called_card is not None else None
+    )
     tricks_taken_by_picker_team = tricks_taken_by_seat(
         hand, hand.picker_seat, partner_seat
     )
-    partner = players[partner_seat]
+    partner = None if partner_seat is None else players[partner_seat]
     picker = players[hand.picker_seat]
-    picker_team_points = partner.points_taken + picker.points_taken
+    picker_team_points = picker.points_taken + (
+        0 if partner is None else partner.points_taken
+    )
     outcome = None
     if len(tricks_taken_by_picker_team) == 6:
         # If the picker takes all 6 tricks, they will have 120 points.
@@ -190,7 +161,7 @@ def update_scores_partnered(players, hand):
 
     print(f"Picker {picker.name} {outcome}")
     print("|".join([f"{player.name: ^16}" for player in players]))
-    picker_delta = outcome.value / 2
+    picker_delta = outcome.value / (1 if partner is None else 2)
     partner_delta = outcome.value / 4
     opposition_delta = outcome.value / -4
     delta_strings = [""] * len(players)
@@ -204,13 +175,6 @@ def update_scores_partnered(players, hand):
         delta_strings[i] = f"{f'{players[i].score}({delta})': ^16}"
     print("|".join(delta_strings))
     print()
-
-
-def update_scores(players: list[Player], hand: Hand):
-    if hand.pick_style == PickStyle.ALONE:
-        update_scores_alone(players, hand)
-    else:
-        update_scores_partnered(players, hand)
 
 
 def play_game(
