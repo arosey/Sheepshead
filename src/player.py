@@ -23,12 +23,13 @@ class Player:
         self._dealt_cards: list[Card] = []
         self._bury: Optional[list[Card]] = None
         self._partner_seat: Optional[int] = None
+        self._partner_is_known: Optional[bool] = False
 
     def __str__(self):
         description = ""
         if self.is_picker:
             description += "(picker)"
-        elif self.is_partner:
+        elif self.is_partner and self._partner_is_known:
             description += "(partnr)"
         else:
             description += f"(seat {self.seat})"
@@ -111,6 +112,8 @@ class Player:
         )
         logging.debug(f"{self.name}'s cards: {self._dealt_cards}")
         assert len(self._dealt_cards) == len(set(self._dealt_cards))
+        if self.is_partner and hand.called_card not in self._dealt_cards:
+            self._partner_is_known = True
         return self._play_internal(hand)
 
     def reset(self):
